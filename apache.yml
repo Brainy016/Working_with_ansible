@@ -1,0 +1,106 @@
+---
+- name: Install and Configure Apache on Ubuntu & Fedora
+  hosts: all
+  become: yes
+  tasks:
+
+    - name: Update package cache (Ubuntu)
+      apt:
+        update_cache: yes
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Update package cache (Fedora)
+      dnf:
+        update_cache: yes
+      when: ansible_facts['os_family'] == "RedHat"
+
+    - name: Install Apache (Ubuntu)
+      apt:
+        name: apache2
+        state: present
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Install Apache (Fedora)
+      dnf:
+        name: httpd
+        state: present
+      when: ansible_facts['os_family'] == "RedHat"
+
+    - name: Ensure Apache is listening on 0.0.0.0:8080 (Ubuntu)
+      blockinfile:
+        path: /etc/apache2/ports.conf
+        block: |
+          Listen 0.0.0.0:8080
+          Listen [::]:8080
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Ensure Apache is listening on 0.0.0.0:8080 (Fedora)
+      blockinfile:
+        path: /etc/httpd/conf/httpd.conf
+        block: |
+          Listen 0.0.0.0:8080
+          Listen [::]:8080
+      when: ansible_facts['os_family'] == "RedHat"
+
+    - name: Update Apache Virtual Host Configuration (Ubuntu)
+      blockinfile:
+        path: /etc/apache2/sites-available/000-default.conf
+        block: |
+          <VirtualHost 0.0.0.0:8080>
+            DocumentRoot /var/www/html
+            ErrorLog ${APACHE_LOG_DIR}/error.log
+            CustomLog ${APACHE_LOG_DIR}/access.log combined
+          </VirtualHost>
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Update Apache Virtual Host Configuration (Fedora)
+      blockinfile:
+        path: /etc/httpd/conf/httpd.conf
+        block: |
+          <VirtualHost 0.0.0.0:8080>
+            DocumentRoot /var/www/html
+            ErrorLog /var/log/httpd/error.log
+            CustomLog /var/log/httpd/access.log combined
+          </VirtualHost>
+      when: ansible_facts['os_family'] == "RedHat"
+
+    - name: Test Apache Configuration (Ubuntu)
+      command: apachectl configtest
+      when: ansible_facts['os_family'] == "Debian"
+      register: apache_test
+      failed_when: apache_test.rc != 0
+
+    - name: Test Apache Configuration (Fedora)
+      command: apachectl configtest
+      when: ansible_facts['os_family'] == "RedHat"
+      register: apache_test
+      failed_when: apache_test.rc != 0
+
+    - name: Restart Apache (Ubuntu)
+      service:
+        name: apache2
+        state: restarted
+        enabled: yes
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Restart Apache (Fedora)
+      service:
+        name: httpd
+        state: restarted
+        enabled: yes
+      when: ansible_facts['os_family'] == "RedHat"
+
+    - name: Allow traffic on port 8080 (Ubuntu)
+      ufw:
+        rule: allow
+        port: "8080"
+        proto: tcp
+      when: ansible_facts['os_family'] == "Debian"
+
+    - name: Allow traffic on port 8080 (Fedora)
+      firewalld:
+        service: http
+        permanent: yes
+        state: enabled
+      when: ansible_facts['os_family'] == "RedHat"
+

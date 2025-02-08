@@ -1,0 +1,59 @@
+- name: Install Python and Docker
+  hosts: web
+  become: yes
+  
+  tasks:
+    # Install Python (if not already installed)
+    - name: Install Python
+      apt:
+        name: python3
+        state: present
+      when: ansible_facts['os_family'] == 'Debian'  # For Ubuntu/Debian-based systems
+
+    - name: Install Python on RedHat/CentOS
+      yum:
+        name: python3
+        state: present
+      when: ansible_facts['os_family'] == 'RedHat'  # For Fedora/CentOS-based systems
+
+    # Install Docker
+    - name: Install required packages for Docker
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+        state: present
+      when: ansible_facts['os_family'] == 'Debian'  # For Ubuntu/Debian-based systems
+
+    - name: Install Docker on Ubuntu/Debian
+      apt:
+        name: docker.io
+        state: present
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Install Docker on CentOS/RedHat
+      yum:
+        name: docker
+        state: present
+      when: ansible_facts['os_family'] == 'RedHat'
+    
+    # Add Docker service to start on boot
+    - name: Ensure Docker is started and enabled to start on boot
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    # Verify Docker installation
+    - name: Verify Docker version
+      command: docker --version
+      register: docker_version
+      changed_when: false
+      failed_when: false
+
+    - name: Display Docker version
+      debug:
+        var: docker_version.stdout
+

@@ -1,0 +1,47 @@
+- name: Create a user and set up SSH key authentication
+  hosts: all
+  become: yes  # Run tasks as sudo
+
+  vars:
+    username: "userbrainy"
+    ssh_public_key: "~/.ssh/id_rsa.pub"  # The directory of the SSH public key
+
+  tasks:
+    - name: Create a new user
+      user:
+        name: "{{ username }}"
+        shell: /bin/bash
+        groups: sudo  # For Debian/Ubuntu
+        append: yes
+        create_home: yes
+
+    - name: Create SSH directory
+      file:
+        path: "/home/{{ username }}/.ssh"
+        state: directory
+        owner: "{{ username }}"
+        group: "{{ username }}"
+        mode: '0700'
+
+    - name: Add SSH public key for authentication
+      copy:
+        content: "{{ ssh_public_key }}"
+        dest: "/home/{{ username }}/.ssh/authorized_keys"
+        owner: "{{ username }}"
+        group: "{{ username }}"
+        mode: '0600'
+
+    - name: Grant sudo access (for Debian/Ubuntu)
+      copy:
+        content: "{{ username }} ALL=(ALL) NOPASSWD:ALL"
+        dest: "/etc/sudoers.d/{{ username }}"
+        mode: '0440'
+      when: ansible_os_family == "Debian"
+
+    - name: Grant sudo access (for RHEL/CentOS)
+      lineinfile:
+        path: /etc/sudoers
+        line: "{{ username }} ALL=(ALL) NOPASSWD:ALL"
+        validate: 'visudo -cf %s'
+      when: ansible_os_family == "RedHat"
+
